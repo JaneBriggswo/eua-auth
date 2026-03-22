@@ -16,19 +16,41 @@ async function setup() {
         const password = process.env.ADMIN_PASSWORD || 'eua123';
         const email = process.env.ADMIN_EMAIL || 'admin@phantom.com';
 
-        const existingAdmin = AdminModel.findByUsername(username);
+        let existingAdmin = AdminModel.findByUsername(username);
         
         if (existingAdmin) {
             console.log(`✓ Admin '${username}' já existe`);
         } else {
-            const hashedPassword = await bcrypt.hash(password, 10);
-            AdminModel.create({
-                username,
-                email,
-                password: hashedPassword,
-                role: 'superadmin'
-            });
-            console.log(`✓ Admin '${username}' criado com sucesso`);
+            // Tentar procurar por email se username não existir
+            existingAdmin = AdminModel.findByEmail(email);
+            
+            if (existingAdmin) {
+                // Admin existe com outro username, vamos atualizar
+                console.log(`ℹ️ Admin com email '${email}' encontrado, atualizando...`);
+                try {
+                    const hashedPassword = await bcrypt.hash(password, 10);
+                    // Atualizar o admin existente
+                    AdminModel.update(existingAdmin.id, {
+                        username,
+                        email,
+                        password: hashedPassword,
+                        role: 'superadmin'
+                    });
+                    console.log(`✓ Admin atualizado para '${username}'`);
+                } catch (error) {
+                    console.log(`⚠️ Erro ao atualizar: ${error.message}`);
+                }
+            } else {
+                // Criar novo admin
+                const hashedPassword = await bcrypt.hash(password, 10);
+                AdminModel.create({
+                    username,
+                    email,
+                    password: hashedPassword,
+                    role: 'superadmin'
+                });
+                console.log(`✓ Admin '${username}' criado com sucesso`);
+            }
         }
 
         // Salvar banco

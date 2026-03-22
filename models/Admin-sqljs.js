@@ -28,6 +28,13 @@ class AdminModel {
         return exec('UPDATE admins SET last_login = CURRENT_TIMESTAMP WHERE id = ?', [id]);
     }
 
+    static update(id, { username, email, password, role }) {
+        return exec(
+            'UPDATE admins SET username = ?, email = ?, password = ?, role = ? WHERE id = ?',
+            [username, email, password, role, id]
+        );
+    }
+
     static delete(id) {
         return exec('DELETE FROM admins WHERE id = ?', [id]);
     }
