@@ -12,6 +12,8 @@ app.set('trust proxy', 1);
 
 // Importar database (versão sql.js - sem necessidade de Python)
 const { initDatabase } = require('./database/database-sqljs');
+const bcrypt = require('bcryptjs');
+const AdminModel = require('./models/Admin-sqljs');
 
 // Importar rotas
 const authRoutes = require('./routes/auth');
@@ -109,8 +111,36 @@ app.use((err, req, res, next) => {
     });
 });
 
+// Função auxiliar para garantir que o admin padrão existe
+async function ensureAdminExists() {
+    try {
+        const username = process.env.ADMIN_USERNAME || 'euastore';
+        const password = process.env.ADMIN_PASSWORD || 'eua123';
+        const email = process.env.ADMIN_EMAIL || 'admin@phantom.com';
+        
+        const existingAdmin = AdminModel.findByUsername(username);
+        
+        if (!existingAdmin) {
+            const hashedPassword = await bcrypt.hash(password, 10);
+            AdminModel.create({
+                username,
+                email,
+                password: hashedPassword,
+                role: 'superadmin'
+            });
+            console.log(`✓ Admin ${username} criado automaticamente`);
+        } else {
+            console.log(`✓ Admin ${username} já existe`);
+        }
+    } catch (error) {
+        console.error('⚠️ Erro ao garantir admin:', error.message);
+    }
+}
+
 // Inicializar banco de dados e depois iniciar servidor
-initDatabase().then(() => {
+initDatabase().then(async () => {
+    await ensureAdminExists();
+    
     app.listen(PORT, '0.0.0.0', () => {
         console.log('═══════════════════════════════════════════════');
         console.log('   EUA Bypass Auth System');
