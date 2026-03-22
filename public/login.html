@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Login - EUA Bypass</title>
+    <link rel="stylesheet" href="/css/style.css?v=2.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="login-container">
+        <div class="login-box">
+            <div class="login-header">
+                <h1>EUA Bypass</h1>
+                <p>Painel de Administração</p>
+            </div>
+
+            <div id="alert-container"></div>
+
+            <form id="login-form">
+                <div class="form-group">
+                    <label>Username</label>
+                    <input type="text" id="username" placeholder="Digite seu username" required>
+                </div>
+
+                <div class="form-group">
+                    <label>Password</label>
+                    <input type="password" id="password" placeholder="Digite sua senha" required>
+                </div>
+
+                <button type="submit" class="btn btn-primary" id="login-btn">
+                    Entrar
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('login-form');
+        const alertContainer = document.getElementById('alert-container');
+        const loginBtn = document.getElementById('login-btn');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+
+            loginBtn.textContent = 'Entrando...';
+            loginBtn.disabled = true;
+            alertContainer.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ username, password })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    localStorage.setItem('token', data.data.token);
+                    localStorage.setItem('admin', JSON.stringify(data.data.admin));
+                    
+                    alertContainer.innerHTML = `
+                        <div class="alert" style="background: rgba(16, 185, 129, 0.1); border: 1px solid #10b981; color: #10b981;">
+                            ✅ Login realizado! Redirecionando...
+                        </div>
+                    `;
+                    
+                    setTimeout(() => {
+                        window.location.href = '/dashboard.html';
+                    }, 1000);
+                } else {
+                    throw new Error(data.message || 'Erro ao fazer login');
+                }
+            } catch (err) {
+                alertContainer.innerHTML = `
+                    <div class="alert alert-error">
+                        ❌ ${err.message}
+                    </div>
+                `;
+                loginBtn.textContent = 'Entrar';
+                loginBtn.disabled = false;
+            }
+        });
+
+        // Verificar se já está logado
+        const token = localStorage.getItem('token');
+        if (token) {
+            fetch('/api/auth/verify', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.href = '/dashboard.html';
+                }
+            })
+            .catch(() => {
+                localStorage.removeItem('token');
+                localStorage.removeItem('admin');
+            });
+        }
+    </script>
+</body>
+</html>

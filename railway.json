@@ -1,0 +1,13 @@
+{
+  "name": "phantom-auth-deploy",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node server.js",
+    "build": "npm run init-db",
+    "postinstall": "npm run build"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  }
+}

@@ -1,0 +1,253 @@
+// ====================
+// TESTE DA API - Use no Postman, Insomnia ou Thunder Client
+// ====================
+
+// BASE URL (mude quando hospedar)
+const BASE_URL = "http://localhost:3000/api";
+
+// ====================
+// 1. LOGIN DE ADMIN
+// ====================
+POST {{BASE_URL}}/auth/login
+Content-Type: application/json
+
+{
+    "username": "euastore",
+    "password": "eua123"
+}
+
+// Resposta de sucesso:
+{
+    "success": true,
+    "message": "Login realizado com sucesso",
+    "data": {
+        "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+        "admin": {
+            "id": 1,
+            "username": "euastore",
+            "email": "admin@phantom.com",
+            "role": "superadmin"
+        }
+    }
+}
+
+// ====================
+// 2. CRIAR PRODUTO (COM TOKEN)
+// ====================
+POST {{BASE_URL}}/products
+Authorization: Bearer SEU_TOKEN_AQUI
+Content-Type: application/json
+
+{
+    "name": "PhantomBypass - 1 Mês",
+    "description": "Acesso completo por 30 dias",
+    "price": 29.99,
+    "duration_days": 30
+}
+
+// ====================
+// 3. CRIAR USUÁRIO
+// ====================
+POST {{BASE_URL}}/users
+Authorization: Bearer SEU_TOKEN_AQUI
+Content-Type: application/json
+
+{
+    "discord_id": "123456789012345678",
+    "discord_username": "TestUser#0001",
+    "product_id": 1,
+    "duration_days": 30
+}
+
+// Resposta - COPIE A LICENSE KEY!
+{
+    "success": true,
+    "message": "Usuário criado com sucesso",
+    "data": {
+        "id": 1,
+        "discord_id": "123456789012345678",
+        "discord_username": "TestUser#0001",
+        "license_key": "A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6",
+        "expires_at": "2026-03-13T12:00:00.000Z"
+    }
+}
+
+// ====================
+// 4. VERIFICAR LICENÇA (PARA O EXECUTÁVEL C++)
+// ====================
+POST {{BASE_URL}}/client/verify
+Content-Type: application/json
+
+{
+    "discord_id": "123456789012345678",
+    "hwid": "ABCD1234EFGH5678"
+}
+
+// Resposta de sucesso:
+{
+    "success": true,
+    "message": "Licença válida",
+    "data": {
+        "discord_username": "TestUser#0001",
+        "product_name": "PhantomBypass - 1 Mês",
+        "expires_at": "2026-03-13T12:00:00.000Z",
+        "days_remaining": 30,
+        "hwid_set": true
+    }
+}
+
+// Resposta de erro (banido):
+{
+    "success": false,
+    "message": "Usuário banido",
+    "ban_reason": "Violação de termos de uso"
+}
+
+// ====================
+// 5. VERIFICAR POR LICENSE KEY
+// ====================
+POST {{BASE_URL}}/client/verify-key
+Content-Type: application/json
+
+{
+    "license_key": "A1B2C3D4E5F6G7H8I9J0K1L2M3N4O5P6",
+    "hwid": "ABCD1234EFGH5678"
+}
+
+// ====================
+// 6. BANIR USUÁRIO
+// ====================
+POST {{BASE_URL}}/users/1/ban
+Authorization: Bearer SEU_TOKEN_AQUI
+Content-Type: application/json
+
+{
+    "reason": "Uso indevido do software"
+}
+
+// ====================
+// 7. DESBANIR USUÁRIO
+// ====================
+POST {{BASE_URL}}/users/1/unban
+Authorization: Bearer SEU_TOKEN_AQUI
+Content-Type: application/json
+
+// ====================
+// 8. LISTAR TODOS OS USUÁRIOS
+// ====================
+GET {{BASE_URL}}/users
+Authorization: Bearer SEU_TOKEN_AQUI
+
+// ====================
+// 9. LISTAR PRODUTOS
+// ====================
+GET {{BASE_URL}}/products
+Authorization: Bearer SEU_TOKEN_AQUI
+
+// ====================
+// 10. VER LOGS
+// ====================
+GET {{BASE_URL}}/logs?limit=50
+Authorization: Bearer SEU_TOKEN_AQUI
+
+// ====================
+// 11. STATUS DO SERVIDOR
+// ====================
+GET {{BASE_URL}}/client/status
+
+// Resposta:
+{
+    "success": true,
+    "status": "online",
+    "timestamp": "2026-02-11T12:00:00.000Z"
+}
+
+// ====================
+// 12. ATUALIZAR USUÁRIO
+// ====================
+PUT {{BASE_URL}}/users/1
+Authorization: Bearer SEU_TOKEN_AQUI
+Content-Type: application/json
+
+{
+    "discord_username": "NovoNome#0001",
+    "product_id": 2,
+    "is_active": 1
+}
+
+// ====================
+// 13. DELETAR USUÁRIO
+// ====================
+DELETE {{BASE_URL}}/users/1
+Authorization: Bearer SEU_TOKEN_AQUI
+
+// ====================
+// 14. ATUALIZAR PRODUTO
+// ====================
+PUT {{BASE_URL}}/products/1
+Authorization: Bearer SEU_TOKEN_AQUI
+Content-Type: application/json
+
+{
+    "name": "PhantomBypass - 1 Mês (Atualizado)",
+    "price": 34.99,
+    "is_active": 1
+}
+
+// ====================
+// 15. ATIVAR/DESATIVAR PRODUTO
+// ====================
+POST {{BASE_URL}}/products/1/toggle
+Authorization: Bearer SEU_TOKEN_AQUI
+
+// ====================
+// 16. ESTATÍSTICAS DE USUÁRIOS
+// ====================
+GET {{BASE_URL}}/users/stats/overview
+Authorization: Bearer SEU_TOKEN_AQUI
+
+// Resposta:
+{
+    "success": true,
+    "data": {
+        "total_users": 10,
+        "active_users": 7,
+        "banned_users": 2,
+        "expired_users": 1
+    }
+}
+
+// ====================
+// CÓDIGOS DE ERRO COMUNS
+// ====================
+
+// 400 - Bad Request (falta parâmetro)
+{
+    "success": false,
+    "message": "Discord ID é obrigatório"
+}
+
+// 401 - Unauthorized (token inválido)
+{
+    "success": false,
+    "message": "Token inválido ou expirado"
+}
+
+// 403 - Forbidden (banido/inativo)
+{
+    "success": false,
+    "message": "Usuário banido",
+    "ban_reason": "Motivo do ban"
+}
+
+// 404 - Not Found (usuário não existe)
+{
+    "success": false,
+    "message": "Usuário não encontrado"
+}
+
+// 500 - Internal Server Error
+{
+    "success": false,
+    "message": "Erro no servidor"
+}

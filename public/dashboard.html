@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>Dashboard - EUA Bypass</title>
+    <link rel="stylesheet" href="/css/style.css?v=2.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="dashboard">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">
+                <h2>EUA Bypass</h2>
+                <p id="admin-username">Carregando...</p>
+            </div>
+
+            <ul class="sidebar-menu">
+                <li class="menu-item active" data-page="dashboard">
+                    <i class="fas fa-home"></i>
+                    <span>Dashboard</span>
+                </li>
+                <li class="menu-item" data-page="users">
+                    <i class="fas fa-users"></i>
+                    <span>Usuários</span>
+                </li>
+                <li class="menu-item" data-page="products">
+                    <i class="fas fa-box"></i>
+                    <span>Produtos</span>
+                </li>
+                <li class="menu-item" data-page="logs">
+                    <i class="fas fa-list"></i>
+                    <span>Logs</span>
+                </li>
+                <li class="menu-item" id="logout-btn">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>Sair</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <div id="page-content">
+                <div class="loading">
+                    <i class="fas fa-spinner"></i>
+                    <p>Carregando...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Container -->
+    <div id="modal-container"></div>
+
+    <script>
+        // Configurações
+        const API_URL = '/api';
+        let token = localStorage.getItem('token');
+        let admin = JSON.parse(localStorage.getItem('admin') || '{}');
+
+        // Verificar autenticação
+        if (!token) {
+            window.location.href = '/login.html';
+        }
+
+        // Headers padrão
+        const headers = {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${token}`
+        };
+
+        // Verificar token
+        fetch(`${API_URL}/auth/verify`, {
+            method: 'POST',
+            headers
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (!data.success) {
+                localStorage.removeItem('token');
+                localStorage.removeItem('admin');
+                window.location.href = '/login.html';
+            } else {
+                document.getElementById('admin-username').textContent = `Olá, ${data.data.admin.username}`;
+            }
+        });
+
+        // Navegação
+        document.querySelectorAll('.menu-item').forEach(item => {
+            item.addEventListener('click', function() {
+                const page = this.getAttribute('data-page');
+                if (page) {
+                    document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+                    loadPage(page);
+                }
+            });
+        });
+
+        // Logout
+        document.getElementById('logout-btn').addEventListener('click', () => {
+            localStorage.removeItem('token');
+            localStorage.removeItem('admin');
+            window.location.href = '/login.html';
+        });
+
+        // Carregar páginas
+        async function loadPage(page) {
+            const content = document.getElementById('page-content');
+            
+            switch(page) {
+                case 'dashboard':
+                    await loadDashboard(content);
+                    break;
+                case 'users':
+                    await loadUsers(content);
+                    break;
+                case 'products':
+                    await loadProducts(content);
+                    break;
+                case 'logs':
+                    await loadLogs(content);
+                    break;
+            }
+        }
+
+        // Dashboard
+        async function loadDashboard(container) {
+            try {
+                const res = await fetch(`${API_URL}/users/stats/overview`, { headers });
+                const data = await res.json();
+                const stats = data.data;
+
+                container.innerHTML = `
+                    <div class="content-header">
+                        <h1>Dashboard</h1>
+                    </div>
+
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">Total de Usuários</span>
+                                <div class="stat-card-icon primary">
+                                    <i class="fas fa-users"></i>
+                                </div>
+                            </div>
+                            <div class="stat-card-value">${stats.total_users || 0}</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">Usuários Ativos</span>
+                                <div class="stat-card-icon success">
+                                    <i class="fas fa-check-circle"></i>
+                                </div>
+                            </div>
+                            <div class="stat-card-value">${stats.active_users || 0}</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">Usuários Banidos</span>
+                                <div class="stat-card-icon danger">
+                                    <i class="fas fa-ban"></i>
+                                </div>
+                            </div>
+                            <div class="stat-card-value">${stats.banned_users || 0}</div>
+                        </div>
+
+                        <div class="stat-card">
+                            <div class="stat-card-header">
+                                <span class="stat-card-title">Licenças Expiradas</span>
+                                <div class="stat-card-icon warning">
+                                    <i class="fas fa-exclamation-triangle"></i>
+                                </div>
+                            </div>
+                            <div class="stat-card-value">${stats.expired_users || 0}</div>
+                        </div>
+                    </div>
+                `;
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-error">Erro ao carregar dados: ${err.message}</div>`;
+            }
+        }
+
+        // Usuários
+        async function loadUsers(container) {
+            try {
+                const res = await fetch(`${API_URL}/users`, { headers });
+                const data = await res.json();
+                const users = data.data;
+
+                let html = `
+                    <div class="content-header">
+                        <h1>Gerenciar Usuários</h1>
+                        <button class="btn btn-success btn-small" onclick="showCreateUserModal()">
+                            <i class="fas fa-plus"></i> Novo Usuário
+                        </button>
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Discord ID</th>
+                                    <th>Username</th>
+                                    <th>Produto</th>
+                                    <th>HWID</th>
+                                    <th>Expira em</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                users.forEach(user => {
+                    const expiresAt = new Date(user.expires_at).toLocaleDateString('pt-BR');
+                    const statusBadge = user.is_banned ? 
+                        '<span class="badge badge-danger">Banido</span>' :
+                        user.is_active ? 
+                        '<span class="badge badge-success">Ativo</span>' :
+                        '<span class="badge badge-warning">Inativo</span>';
+
+                    html += `
+                        <tr>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    <code style="background: #6366f1; color: white; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${user.discord_id}</code>
+                                    <button class="btn-icon" onclick="copyToClipboard('${user.discord_id}')" title="Copiar Discord ID" style="background: #6366f1;">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                </div>
+                            </td>
+                            <td>${user.discord_username || 'N/A'}</td>
+                            <td>${user.product_name || 'Sem produto'}</td>
+                            <td>
+                                <div style="display: flex; align-items: center; gap: 8px;">
+                                    ${user.hwid ? 
+                                        `<span title="${user.hwid}" style="color: #4ade80;">🔒 Vinculado</span>` : 
+                                        `<span style="color: #a0a0a0;">⚪ Não vinculado</span>`
+                                    }
+                                    ${user.hwid ? 
+                                        `<button class="btn-icon" onclick="resetHWID(${user.id})" title="Resetar HWID" style="background: #f59e0b;">
+                                            <i class="fas fa-redo"></i>
+                                        </button>` : 
+                                        ''
+                                    }
+                                </div>
+                            </td>
+                            <td>${expiresAt}</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn-icon btn-ban" onclick="toggleBan(${user.id}, ${user.is_banned})" title="${user.is_banned ? 'Desbanir' : 'Banir'}">
+                                        <i class="fas ${user.is_banned ? 'fa-check' : 'fa-ban'}"></i>
+                                    </button>
+                                    <button class="btn-icon btn-delete" onclick="deleteUser(${user.id})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-error">Erro ao carregar usuários: ${err.message}</div>`;
+            }
+        }
+
+        // Produtos
+        async function loadProducts(container) {
+            try {
+                const res = await fetch(`${API_URL}/products`, { headers });
+                const data = await res.json();
+                const products = data.data;
+
+                let html = `
+                    <div class="content-header">
+                        <h1>Gerenciar Produtos</h1>
+                        <button class="btn btn-success btn-small" onclick="showCreateProductModal()">
+                            <i class="fas fa-plus"></i> Novo Produto
+                        </button>
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Descrição</th>
+                                    <th>Preço</th>
+                                    <th>Duração</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                products.forEach(product => {
+                    const statusBadge = product.is_active ?
+                        '<span class="badge badge-success">Ativo</span>' :
+                        '<span class="badge badge-danger">Inativo</span>';
+
+                    html += `
+                        <tr>
+                            <td>${product.name}</td>
+                            <td>${product.description}</td>
+                            <td>R$ ${product.price.toFixed(2)}</td>
+                            <td>${product.duration_days} dias</td>
+                            <td>${statusBadge}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <button class="btn-icon btn-ban" onclick="toggleProduct(${product.id})">
+                                        <i class="fas ${product.is_active ? 'fa-toggle-on' : 'fa-toggle-off'}"></i>
+                                    </button>
+                                    <button class="btn-icon btn-delete" onclick="deleteProduct(${product.id})">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-error">Erro ao carregar produtos: ${err.message}</div>`;
+            }
+        }
+
+        // Logs
+        async function loadLogs(container) {
+            try {
+                const res = await fetch(`${API_URL}/logs?limit=50`, { headers });
+                const data = await res.json();
+                const logs = data.data;
+
+                let html = `
+                    <div class="content-header">
+                        <h1>Logs do Sistema</h1>
+                    </div>
+
+                    <div class="data-table-container">
+                        <table class="data-table">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Discord ID</th>
+                                    <th>Ação</th>
+                                    <th>Detalhes</th>
+                                    <th>IP</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                `;
+
+                logs.forEach(log => {
+                    const date = new Date(log.created_at).toLocaleString('pt-BR');
+                    html += `
+                        <tr>
+                            <td>${date}</td>
+                            <td>${log.discord_id || 'N/A'}</td>
+                            <td>${log.action}</td>
+                            <td>${log.details || ''}</td>
+                            <td>${log.ip_address || 'N/A'}</td>
+                        </tr>
+                    `;
+                });
+
+                html += `
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                container.innerHTML = html;
+            } catch (err) {
+                container.innerHTML = `<div class="alert alert-error">Erro ao carregar logs: ${err.message}</div>`;
+            }
+        }
+
+        // Funções de ação
+        async function deleteUser(id) {
+            if (!confirm('Tem certeza que deseja deletar este usuário?')) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/users/${id}`, {
+                    method: 'DELETE',
+                    headers
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('Usuário deletado com sucesso!');
+                    loadPage('users');
+                } else {
+                    alert('Erro: ' + data.message);
+                }
+            } catch (err) {
+                alert('Erro ao deletar usuário: ' + err.message);
+            }
+        }
+
+        async function toggleBan(id, isBanned) {
+            const endpoint = isBanned ? 'unban' : 'ban';
+            const reason = !isBanned ? prompt('Motivo do ban:') : '';
+            
+            if (!isBanned && !reason) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/users/${id}/${endpoint}`, {
+                    method: 'POST',
+                    headers,
+                    body: JSON.stringify({ reason })
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert(data.message);
+                    loadPage('users');
+                } else {
+                    alert('Erro: ' + data.message);
+                }
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        }
+
+        async function resetHWID(id) {
+            if (!confirm('⚠️ Resetar HWID?\n\nIsso permitirá que o usuário faça login em um novo PC.\nO PC atual será desvinculado.\n\nDeseja continuar?')) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/users/${id}/reset-hwid`, {
+                    method: 'POST',
+                    headers
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('✅ ' + data.message);
+                    loadPage('users');
+                } else {
+                    alert('❌ Erro: ' + data.message);
+                }
+            } catch (err) {
+                alert('❌ Erro ao resetar HWID: ' + err.message);
+            }
+        }
+
+        async function deleteProduct(id) {
+            if (!confirm('Tem certeza que deseja deletar este produto?')) return;
+            
+            try {
+                const res = await fetch(`${API_URL}/products/${id}`, {
+                    method: 'DELETE',
+                    headers
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    alert('Produto deletado com sucesso!');
+                    loadPage('products');
+                } else {
+                    alert('Erro: ' + data.message);
+                }
+            } catch (err) {
+                alert('Erro ao deletar produto: ' + err.message);
+            }
+        }
+
+        async function toggleProduct(id) {
+            try {
+                const res = await fetch(`${API_URL}/products/${id}/toggle`, {
+                    method: 'POST',
+                    headers
+                });
+                const data = await res.json();
+                
+                if (data.success) {
+                    loadPage('products');
+                } else {
+                    alert('Erro: ' + data.message);
+                }
+            } catch (err) {
+                alert('Erro: ' + err.message);
+            }
+        }
+
+        async function showCreateUserModal() {
+            // Buscar produtos
+            const res = await fetch(`${API_URL}/products`, { headers });
+            const data = await res.json();
+            const products = data.data;
+
+            const modal = document.getElementById('modal-container');
+            modal.innerHTML = `
+                <div class="modal-overlay">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h2>Novo Usuário</h2>
+                            <button class="modal-close" onclick="closeModal()">&times;</button>
+                        </div>
+                        <form id="create-user-form">
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Discord ID * <span style="color: #6366f1; font-size: 12px;">(usado para login)</span></label>
+                                    <input type="text" id="discord_id" required placeholder="Ex: 1285045977614516284">
+                                    <small style="color: #a0a0a0; display: block; margin-top: 5px;">
+                                        💡 O usuário fará login com este Discord ID no loader
+                                    </small>
+                                </div>
+                                <div class="form-group">
+                                    <label>Discord Username</label>
+                                    <input type="text" id="discord_username" placeholder="Ex: gusta9">
+                                </div>
+                                <div class="form-group">
+                                    <label>Produto</label>
+                                    <select id="product_id" style="width: 100%; padding: 12px; background: #1e1e2e; border: 1px solid #404060; border-radius: 8px; color: #e0e0e0;">
+                                        <option value="">Selecione um produto</option>
+                                        ${products.map(p => `<option value="${p.id}">${p.name}</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label>Duração (dias)</label>
+                                    <input type="number" id="duration_days" value="30" min="1">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary btn-small" onclick="closeModal()">Cancelar</button>
+                                <button type="submit" class="btn btn-primary btn-small">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('create-user-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const formData = {
+                    discord_id: document.getElementById('discord_id').value,
+                    discord_username: document.getElementById('discord_username').value,
+                    product_id: document.getElementById('product_id').value || null,
+                    duration_days: parseInt(document.getElementById('duration_days').value)
+                };
+
+                try {
+                    const res = await fetch(`${API_URL}/users`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(formData)
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        closeModal();
+                        
+                        // Mostrar Discord ID para login
+                        const discordId = formData.discord_id;
+                        const username = formData.discord_username || 'N/A';
+                        const modalContainer = document.getElementById('modal-container');
+                        modalContainer.innerHTML = `
+                            <div class="modal-overlay">
+                                <div class="modal" style="max-width: 500px;">
+                                    <div class="modal-header">
+                                        <h2>✅ Usuário Criado!</h2>
+                                    </div>
+                                    <div class="modal-body" style="text-align: center;">
+                                        <p style="margin-bottom: 20px;">Use este Discord ID para fazer login:</p>
+                                        <div style="background: #1a1a2e; padding: 20px; border-radius: 8px; border: 2px solid #6366f1; margin: 20px 0;">
+                                            <p style="color: #a0a0a0; font-size: 14px; margin-bottom: 5px;">Discord ID</p>
+                                            <h1 style="font-family: monospace; color: #6366f1; margin: 10px 0; font-size: 24px;">${discordId}</h1>
+                                            <p style="color: #e0e0e0; font-size: 16px; margin-top: 5px;">${username}</p>
+                                        </div>
+                                        <p style="color: #6366f1; font-weight: bold; margin-top: 20px;">ℹ️ O usuário fará login com este Discord ID</p>
+                                        <button class="btn btn-primary" onclick="copyToClipboard('${discordId}')" style="margin: 20px 0;">📋 Copiar Discord ID</button>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button class="btn btn-secondary btn-small" onclick="closeModal(); loadPage('users');">OK, Entendi</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        alert('Erro: ' + data.message);
+                    }
+                } catch (err) {
+                    alert('Erro ao criar usuário: ' + err.message);
+                }
+            });
+        }
+
+        async function showCreateProductModal() {
+            const modal = document.getElementById('modal-container');
+            modal.innerHTML = `
+                <div class="modal-overlay">
+                    <div class="modal">
+                        <div class="modal-header">
+                            <h2>Novo Produto</h2>
+                            <button class="modal-close" onclick="closeModal()">&times;</button>
+                        </div>
+                        <form id="create-product-form">
+                            <div class="modal-body">
+                                <div class="form-group">
+                                    <label>Nome *</label>
+                                    <input type="text" id="name" required>
+                                </div>
+                                <div class="form-group">
+                                    <label>Descrição</label>
+                                    <input type="text" id="description">
+                                </div>
+                                <div class="form-group">
+                                    <label>Preço (R$)</label>
+                                    <input type="number" id="price" step="0.01" value="0" min="0">
+                                </div>
+                                <div class="form-group">
+                                    <label>Duração (dias)</label>
+                                    <input type="number" id="duration_days" value="30" min="1">
+                                </div>
+                            </div>
+                            <div class="modal-footer">
+                                <button type="button" class="btn btn-secondary btn-small" onclick="closeModal()">Cancelar</button>
+                                <button type="submit" class="btn btn-primary btn-small">Salvar</button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('create-product-form').addEventListener('submit', async (e) => {
+                e.preventDefault();
+                
+                const formData = {
+                    name: document.getElementById('name').value,
+                    description: document.getElementById('description').value,
+                    price: parseFloat(document.getElementById('price').value),
+                    duration_days: parseInt(document.getElementById('duration_days').value)
+                };
+
+                try {
+                    const res = await fetch(`${API_URL}/products`, {
+                        method: 'POST',
+                        headers,
+                        body: JSON.stringify(formData)
+                    });
+                    const data = await res.json();
+                    
+                    if (data.success) {
+                        alert('Produto criado com sucesso!');
+                        closeModal();
+                        loadPage('products');
+                    } else {
+                        alert('Erro: ' + data.message);
+                    }
+                } catch (err) {
+                    alert('Erro ao criar produto: ' + err.message);
+                }
+            });
+        }
+
+        function copyToClipboard(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('✅ License Key copiada para a área de transferência!');
+            }).catch(err => {
+                // Fallback para browsers antigos
+                const textarea = document.createElement('textarea');
+                textarea.value = text;
+                document.body.appendChild(textarea);
+                textarea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textarea);
+                alert('✅ License Key copiada para a área de transferência!');
+            });
+        }
+
+        function closeModal() {
+            document.getElementById('modal-container').innerHTML = '';
+        }
+
+        // Carregar dashboard ao iniciar
+        loadPage('dashboard');
+    </script>
+</body>
+</html>
