@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
+const bcrypt = require('bcryptjs');
 
 const app = express();
 const PORT = process.env.API_PORT || process.env.PORT || 8080;
@@ -11,7 +12,8 @@ const PORT = process.env.API_PORT || process.env.PORT || 8080;
 app.set('trust proxy', 1);
 
 // Importar database (versão sql.js - sem necessidade de Python)
-const { initDatabase } = require('./database/database-sqljs');
+const { initDatabase, saveDatabase } = require('./database/database-sqljs');
+const AdminModel = require('./models/Admin-sqljs');
 
 // Importar rotas
 const authRoutes = require('./routes/auth');
@@ -110,7 +112,47 @@ app.use((err, req, res, next) => {
 });
 
 // Inicializar banco de dados e depois iniciar servidor
-initDatabase().then(() => {
+initDatabase().then(async () => {
+    // Auto-criar/atualizar admin na inicialização
+    try {
+        const username = process.env.ADMIN_USERNAME || 'euastore';
+        const password = process.env.ADMIN_PASSWORD || 'eua123';
+        const email = process.env.ADMIN_EMAIL || 'admin@phantom.com';
+
+        let existingAdmin = AdminModel.findByUsername(username);
+        
+        if (!existingAdmin) {
+            existingAdmin = AdminModel.findByEmail(email);
+            
+            if (existingAdmin) {
+                // Atualizar admin existente
+                const hashedPassword = await bcrypt.hash(password, 10);
+                AdminModel.update(existingAdmin.id, {
+                    username,
+                    email,
+                    password: hashedPassword,
+                    role: 'superadmin'
+                });
+                console.log(`✓ Admin atualizado para '${username}'`);
+            } else {
+                // Criar novo admin
+                const hashedPassword = await bcrypt.hash(password, 10);
+                AdminModel.create({
+                    username,
+                    email,
+                    password: hashedPassword,
+                    role: 'superadmin'
+                });
+                console.log(`✓ Admin '${username}' criado com sucesso`);
+            }
+        }
+        
+        // Salvar banco
+        saveDatabase();
+    } catch (error) {
+        console.warn('⚠️ Erro ao verificar/criar admin:', error.message);
+    }
+
     app.listen(PORT, '0.0.0.0', () => {
         console.log('═══════════════════════════════════════════════');
         console.log('   EUA Bypass Auth System');
