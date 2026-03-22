@@ -7,7 +7,9 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "init-db": "node scripts/initDatabase.js",
-    "update-products": "node scripts/updateProducts.js"
+    "update-products": "node scripts/updateProducts.js",
+    "setup": "node setup.js",
+    "postinstall": "npm run setup"
   },
   "keywords": ["auth", "discord", "admin", "panel"],
   "author": "",
